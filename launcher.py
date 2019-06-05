@@ -28,4 +28,4 @@ if __name__ == '__main__':
         d.restart()
 
     else:
-        print("please select between start and stop to manage the daemon")
+        print("please select between start, stop and restart to manage the daemon")
