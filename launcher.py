@@ -3,7 +3,7 @@ import os
 import sys
 import time
 
-from mypackage import SleepyDaemon
+from daemon import Daemon
 
 
 if __name__ == '__main__':
@@ -13,7 +13,7 @@ if __name__ == '__main__':
     pidfile = os.path.join(os.getcwd(), "sleepy.pid")
 
     logging.basicConfig(filename=logfile, level=logging.DEBUG)
-    d = SleepyDaemon(pidfile=pidfile)
+    d = Daemon(pidfile=pidfile)
 
     if action == "start":
 
