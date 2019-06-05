@@ -1,0 +1,27 @@
+{
+  "interval": 300,
+  "start peak": 0,
+  "start off-peak": 0,
+  "devices":
+  {
+    "pool pump":
+    {
+      "Wh": 0,
+      "path": ""
+    },
+    "VW E-Golf":
+    {
+      "Wh": 0,
+      "path": ""
+    },
+  },
+  "meters":
+  {
+    "url": "http://envoy.local/production.json",
+    "paths":
+    {
+      "production": "$.production[1].wNow",
+      "consumption": "$.consumption[1].wNow"
+    }
+  }
+}

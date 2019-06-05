@@ -13,52 +13,49 @@ except ImportError:
     print("No module named python-deamon found, please install it (pip install daemons)")
     sys.exit(1)
 
-#class Daemon(run.RunDaemon):
-class Daemon: #Debug
+class Daemon(run.RunDaemon):
+#class Daemon: #Debug
 
-    INTERVAL       = 30
-    HTTP_ERRORS    = [400, 401, 402, 403, 404, 500]
-    VALUES_TO_FIND = ["$.production[1].wNow"]
-
-    def retrieve(self):
+    def retrieve(self, config):
         """
-        gather informations and keep only want we want
+        gather informations from the url gave in the config file
+        and keep only want we want from the json returned by the GET
         """
 
-        req = requests.get('http://envoy.local/production.json')
+        req = requests.get(config["meters"]["url"])
 
         try:
-            # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
             print(f'HTTP error occurred: {http_err}')
-            pass
+            return None
         except Exception as err:
             print(f'Error occurred: {err}')
-            pass
+            return None
 
         json_tree = objectpath.Tree(req.json())
+        result    = dict()
 
-        result = dict()
+        for key, query in config["meters"]["paths"].items():
 
-        for query in self.VALUES_TO_FIND:
             value = json_tree.execute(query)
-            
+
             if type(value) is float:
-                result[query] = value
+                result[key] = value
             else:
-                raise KeyError("Could not find the key '{}' in the json".format(query))
+                raise KeyError("Could not find the key '{}' in the curled json with the query: {}".format(key, query))
 
         return result
 
 
     def run(self):
-        """while True:
-            infos = self.retrieve()
+        with open("config.json", "r") as conffile:
+            config = json.load(conffile)
+        while True:
+            infos = self.retrieve(config)
             if infos is not None:
                 #do the thing
-            time.sleep(self.INTERVAL)"""
-        print(self.retrieve())
+            time.sleep(config["interval"])
 
 if __name__ == "__main__": #Debug
     d = Daemon()
