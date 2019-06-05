@@ -1,9 +1,10 @@
 import time
+import requests
 import json
-from collections.abc import Iterable
+import objectpath
+from requests.exceptions import HTTPError
 
-try:
-    from daemons.prefab import run
+try: from daemons.prefab import run
 except ModuleNotFoundError:
     print("No module named python-deamon found, please install it (pip install daemons)")
     sys.exit(1)
@@ -12,62 +13,51 @@ except ImportError:
     sys.exit(1)
 
 class Daemon(run.RunDaemon):
+#class Daemon: #Debug
 
     INTERVAL       = 30
     HTTP_ERRORS    = [400, 401, 402, 403, 404, 500]
-    VALUES_TO_FIND = []
-
-    working = False
-
-    def __find_dict(self, x, iterable):
-        """
-        find a value in a stupid herierachical json dict of list of dict of list of...
-        """
-
-        for elt in iterable:
-            if !(isinstance(iterable, Iterable)):
-                if elt == x:
-                    return iterable[x] # I know this is a dictionnary cause of json structure
-            else:
-                value = __find_dict(x, elt)
-
-                if value != None:
-                    return value
-
-        return None
+    VALUES_TO_FIND = ["measurementType"]
 
     def retrieve(self):
         """
         gather informations and keep only want we want
         """
+
         req = requests.get('http://envoy.local/production.json')
 
-        if req.status_code in HTTP_ERRORS:
-            raise Exception("http error: " + req.status_code)
+        try:
+            # If the response was successful, no Exception will be raised
+            req.raise_for_status()
+        except HTTPError as http_err:
+            print(f'HTTP error occurred: {http_err}')
+            pass
+        except Exception as err:
+            print(f'Error occurred: {err}')
+            pass
 
-        req = req.json().dump()
+        json_tree = objectpath.Tree(req.json())
 
         result = dict()
 
-        for x in VALUES_TO_FIND:
-            value = __find_dict(x, req)
+        for x in self.VALUES_TO_FIND:
+            values = tuple(json_tree.execute('$..{}'.format(x)))
 
-            if value != None:
-                result[x] = value
-            else
-                raise KeyError("Could not find the given key in the json: " + x)
+            if len(values) > 0:
+                result[x] = values[0]
+            else:
+                raise KeyError("Could not find the key '{}' in the json".format(x))
 
         return result
 
 
     def run(self):
-        while working:
-            time.sleep(INTERVAL)
-            infos = retrieve()
+        while True:
+            infos = self.retrieve()
+            if infos is not None:
+                #do the thing
+            time.sleep(self.INTERVAL)
 
-    def start(self):
-        working = True
-        self.run()
-
-    def stop(self):
-        working = False
+if __name__ == "__main__": #Debug
+    d = Daemon()
+    d.run()
