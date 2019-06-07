@@ -47,6 +47,11 @@ class Daemon(run.RunDaemon):
 
         return result
 
+    def do_the_thing(config, infos):
+        """
+        setup of booleans to turn off/on the devices availables
+        """
+        pass
 
     def run(self):
         with open("config.json", "r") as conffile:
@@ -54,7 +59,7 @@ class Daemon(run.RunDaemon):
         while True:
             infos = self.retrieve(config)
             if infos is not None:
-                #do the thing
+                do_the_thing(infos, config)
             time.sleep(config["interval"])
 
 if __name__ == "__main__": #Debug
