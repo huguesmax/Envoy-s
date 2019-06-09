@@ -27,11 +27,7 @@ class MeterClass:
         self.url   = url
         self.paths = paths
 
-    def retrieve(self, config):
-        """
-        gather informations from the url gave in the config file
-        and keep only want we want from the json returned by the GET
-        """
+    def request():
 
         req = requests.get(self.url)
 
@@ -43,6 +39,14 @@ class MeterClass:
         except Exception as err:
             print(f'Error occurred: {err}')
             return None
+        else:
+            return req
+
+    def retrieve(self, config):
+        """
+        gather informations from the url gave in the config file
+        and keep only want we want from the json returned by the GET
+        """
 
         json_tree = objectpath.Tree(req.json())
         result    = dict()
@@ -71,6 +75,9 @@ class configClass:
         self.start_peak    = dict["start peak"]
         self.start_offpeak = dict["start off-peak"]
 
+    def retrieve():
+        return self.meter.retrieve(self)
+
 
 class Daemon(run.RunDaemon):
 #class Daemon: #Debug
@@ -84,8 +91,8 @@ class Daemon(run.RunDaemon):
     def run(self):
         config = configClass()
         while True:
-            data = config.meter.retrieve(config)
-            if infos is not None:
+            data = config.retrieve()
+            if data is not None:
                 do_the_thing(data, config)
             time.sleep(config.interval)
 
