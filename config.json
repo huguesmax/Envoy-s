@@ -6,11 +6,13 @@
   {
     "pool pump":
     {
+      "wired": false,
       "Wh": 0,
       "path": ""
     },
     "VW E-Golf":
     {
+      "wired": false,
       "Wh": 0,
       "path": ""
     },

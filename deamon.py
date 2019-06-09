@@ -13,8 +13,19 @@ except ImportError:
     print("No module named python-deamon found, please install it (pip install daemons)")
     sys.exit(1)
 
-class Daemon(run.RunDaemon):
-#class Daemon: #Debug
+class DeviceClass:
+
+    def __init__(self, stats):
+
+        self.wired = stats["wired"]
+        self.Watts = stats["Wh"]
+        self.path  = stats["path"]
+
+class MeterClass:
+
+    def __init__(self, url, paths):
+        self.url   = url
+        self.paths = paths
 
     def retrieve(self, config):
         """
@@ -22,7 +33,7 @@ class Daemon(run.RunDaemon):
         and keep only want we want from the json returned by the GET
         """
 
-        req = requests.get(config["meters"]["url"])
+        req = requests.get(self.url)
 
         try:
             req.raise_for_status()
@@ -36,16 +47,33 @@ class Daemon(run.RunDaemon):
         json_tree = objectpath.Tree(req.json())
         result    = dict()
 
-        for key, query in config["meters"]["paths"].items():
+        for key, query in self.paths.items():
 
             value = json_tree.execute(query)
 
             if type(value) is float:
                 result[key] = value
             else:
-                raise KeyError("Could not find the key '{}' in the curled json with the query: {}".format(key, query))
+                raise KeyError(f"Could not find the key '{key}' in the curled json with the query: {query}")
 
         return result
+
+class configClass:
+
+    def __init__(self):
+        with open("config.json", "r") as conf_file:
+            dict = json.load(conf_file)
+
+        self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
+        self.meter    = MeterClass(dict["meters"]["url"], dict["meters"]["paths"])
+        self.interval = dict["interval"]
+
+        self.start_peak    = dict["start peak"]
+        self.start_offpeak = dict["start off-peak"]
+
+
+class Daemon(run.RunDaemon):
+#class Daemon: #Debug
 
     def do_the_thing(config, infos):
         """
@@ -54,13 +82,12 @@ class Daemon(run.RunDaemon):
         pass
 
     def run(self):
-        with open("config.json", "r") as conffile:
-            config = json.load(conffile)
+        config = configClass()
         while True:
-            infos = self.retrieve(config)
+            data = config.meter.retrieve(config)
             if infos is not None:
-                do_the_thing(infos, config)
-            time.sleep(config["interval"])
+                do_the_thing(data, config)
+            time.sleep(config.interval)
 
 if __name__ == "__main__": #Debug
     d = Daemon()
