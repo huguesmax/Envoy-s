@@ -95,7 +95,6 @@ class Daemon(run.RunDaemon):
         """
         pass
 
-    @staticmethod
     def findcwd():
         """
         get the cwd from the pidfile path given by the Daemon
