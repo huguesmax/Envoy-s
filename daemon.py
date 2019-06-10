@@ -47,6 +47,7 @@ class MeterClass:
         gather informations from the url gave in the config file
         and keep only want we want from the json returned by the GET
         """
+        req = request()
 
         json_tree = objectpath.Tree(req.json())
         result    = dict()
@@ -66,10 +67,10 @@ class configClass:
 
     def __init__(self):
         try:
-            with open("config.json", "r") as conf_file:
+            with open("/home/Envoy-s/config.json", "r") as conf_file:
                 dict = json.load(conf_file)
         except Exception as e:
-            print("Error occured: {}".format(e)")
+            print("Error occured: {}".format(e))
             pass
 
         self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
@@ -93,6 +94,7 @@ class Daemon(run.RunDaemon):
         pass
 
     def run(self):
+        print(self.pid)
         config = configClass()
         while True:
             data = config.retrieve()
