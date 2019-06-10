@@ -94,7 +94,7 @@ class Daemon(run.RunDaemon):
         pass
 
     def run(self):
-        print(self.pid)
+        print(self.pidfile)
         config = configClass()
         while True:
             data = config.retrieve()
