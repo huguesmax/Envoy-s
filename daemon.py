@@ -28,7 +28,7 @@ class MeterClass:
         self.url   = url
         self.paths = paths
 
-    def request():
+    def request(self):
 
         req = requests.get(self.url)
 
@@ -81,15 +81,14 @@ class configClass:
         self.start_peak    = dict["start peak"]
         self.start_offpeak = dict["start off-peak"]
 
-    def retrieve():
+    def retrieve(self):
         return self.meter.retrieve(self)
 
 
 class Daemon(run.RunDaemon):
 #class Daemon: #Debug
 
-    @staticmethod
-    def do_the_thing(config, infos):
+    def do_the_thing(self, config, infos):
         """
         setup of booleans to turn off/on the devices availables
         """
@@ -101,10 +100,10 @@ class Daemon(run.RunDaemon):
         """
         i = len(self.pidfile) - 1
 
-        while self.pidfile[i] != os.path.join("", ""):
+        while self.pidfile[i] != '/':
             i -= 1
 
-        return self.pidfile[0:i]
+        return self.pidfile[0:(i+1)]
 
     def run(self):
 
