@@ -48,7 +48,7 @@ class MeterClass:
         gather informations from the url gave in the config file
         and keep only want we want from the json returned by the GET
         """
-        req = request()
+        req = self.request()
 
         json_tree = objectpath.Tree(req.json())
         result    = dict()
@@ -67,17 +67,17 @@ class MeterClass:
 class ConfigClass:
 
     def __init__(self, path):
-        #try:
-        with open(path, "r") as f:
-            s = f.read()
-            s = s.replace('\t','')
-            s = s.replace('\n','')
-            s = s.replace(',}','}')
-            s = s.replace(',]',']')
-            dict = json.loads(s)
-        #except Exception as e:
-        #    print("Error occured in configClass.__init__: {}".format(e))
-        #    pass
+        try:
+            with open(path, "r") as f:
+                s = f.read()
+                s = s.replace('\t','')
+                s = s.replace('\n','')
+                s = s.replace(',}','}')
+                s = s.replace(',]',']')
+                dict = json.loads(s)
+        except Exception as e:
+            print("Error occured in configClass.__init__: {}".format(e))
+            pass
 
         self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
         self.meter    = MeterClass(dict["meters"]["url"], dict["meters"]["paths"])
