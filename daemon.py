@@ -87,18 +87,20 @@ class configClass:
 class Daemon(run.RunDaemon):
 #class Daemon: #Debug
 
+    
     def do_the_thing(config, infos):
         """
         setup of booleans to turn off/on the devices availables
         """
         pass
 
+    @staticmethod
     def findcwd():
         """
         get the cwd from the pidfile path given by the Daemon
         """
         i = len(self.pidfile) - 1
-        
+
         while self.pidfile[i] != os.path.join("", ""):
             i -= 1
 
