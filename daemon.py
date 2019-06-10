@@ -68,8 +68,7 @@ class ConfigClass:
 
     def __init__(self, path):
         try:
-            with open(path, "r") as f:
-                s = f.read()
+            with open(path, "r") as s:
                 s = s.replace('\t','')
                 s = s.replace('\n','')
                 s = s.replace(',}','}')
