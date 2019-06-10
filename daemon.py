@@ -65,9 +65,9 @@ class MeterClass:
 
 class configClass:
 
-    def __init__(self):
+    def __init__(self, path):
         try:
-            with open("/home/Envoy-s/config.json", "r") as conf_file:
+            with open(path, "r") as conf_file:
                 dict = json.load(conf_file)
         except Exception as e:
             print("Error occured: {}".format(e))
@@ -93,9 +93,22 @@ class Daemon(run.RunDaemon):
         """
         pass
 
+    def findcwd():
+        """
+        get the cwd from the pidfile path given by the Daemon
+        """
+        i = len(self.pidfile) - 1
+        
+        while self.pidfile[i] != os.path.join("", ""):
+            i -= 1
+
+        return self.pidfile[0:i]
+
     def run(self):
-        print(self.pidfile)
-        config = configClass()
+
+        cwd    = findcwd()
+        config = configClass(os.path.join(cwd, "config.json"))
+
         while True:
             data = config.retrieve()
             if data is not None:
