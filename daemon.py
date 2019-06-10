@@ -71,6 +71,7 @@ class configClass:
             with open(path, "r") as conf_file:
                 dict = json.load(conf_file)
         except Exception as e:
+            print(path)
             print("Error occured: {}".format(e))
             pass
 
