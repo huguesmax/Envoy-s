@@ -69,7 +69,7 @@ class configClass:
             with open("config.json", "r") as conf_file:
                 dict = json.load(conf_file)
         except Exception as e:
-            print("Error occured: " + e)
+            print("Error occured: {}".format(e)")
             pass
 
         self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
