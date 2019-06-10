@@ -1,6 +1,7 @@
 import time
 import requests
 import json
+import os
 import objectpath
 from requests.exceptions import HTTPError
 
@@ -87,7 +88,7 @@ class configClass:
 class Daemon(run.RunDaemon):
 #class Daemon: #Debug
 
-    
+    @staticmethod
     def do_the_thing(config, infos):
         """
         setup of booleans to turn off/on the devices availables
@@ -108,13 +109,13 @@ class Daemon(run.RunDaemon):
 
     def run(self):
 
-        cwd    = findcwd()
+        cwd    = self.findcwd()
         config = configClass(os.path.join(cwd, "config.json"))
 
         while True:
             data = config.retrieve()
             if data is not None:
-                do_the_thing(data, config)
+                self.do_the_thing(data, config)
             time.sleep(config.interval)
 
 if __name__ == "__main__": #Debug
