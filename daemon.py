@@ -68,6 +68,7 @@ class ConfigClass:
 
     def __init__(self, path):
         try:
+            print(path)
             with open(path, "r") as conf_file:
                 dict = json.load(conf_file)
         except Exception as e:
