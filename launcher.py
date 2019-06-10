@@ -9,8 +9,8 @@ from daemon import Daemon
 if __name__ == '__main__':
 
     action = sys.argv[1]
-    logfile = os.path.join(os.getcwd(), "sleepy.log")
-    pidfile = os.path.join(os.getcwd(), "sleepy.pid")
+    logfile = os.path.join(os.getcwd(), "daemon.log")
+    pidfile = os.path.join(os.getcwd(), "daemon.pid")
 
     logging.basicConfig(filename=logfile, level=logging.DEBUG)
     d = Daemon(pidfile=pidfile)
