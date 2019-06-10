@@ -7,10 +7,10 @@ from requests.exceptions import HTTPError
 try:
     from daemons.prefab import run
 except ModuleNotFoundError:
-    print("No module named python-deamon found, please install it (pip install daemons)")
+    print("No module named deamons found, please install it (pip install daemons)")
     sys.exit(1)
 except ImportError:
-    print("No module named python-deamon found, please install it (pip install daemons)")
+    print("No module named deamons found, please install it (pip install daemons)")
     sys.exit(1)
 
 class DeviceClass:
@@ -65,8 +65,12 @@ class MeterClass:
 class configClass:
 
     def __init__(self):
-        with open("config.json", "r") as conf_file:
-            dict = json.load(conf_file)
+        try:
+            with open("config.json", "r") as conf_file:
+                dict = json.load(conf_file)
+        except Exception as e:
+            print("Error occured: " + e)
+            pass
 
         self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
         self.meter    = MeterClass(dict["meters"]["url"], dict["meters"]["paths"])
