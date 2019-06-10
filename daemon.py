@@ -34,10 +34,10 @@ class MeterClass:
         try:
             req.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')
+            print("HTTP error occurred: {}".format(http_err))
             return None
         except Exception as err:
-            print(f'Error occurred: {err}')
+            print("Error occurred: {}".format(err))
             return None
         else:
             return req
@@ -58,7 +58,7 @@ class MeterClass:
             if type(value) is float:
                 result[key] = value
             else:
-                raise KeyError(f"Could not find the key '{key}' in the curled json with the query: {query}")
+                raise KeyError("Could not find the key {} in the curled json with the query: {}".format(key, query))
 
         return result
 
