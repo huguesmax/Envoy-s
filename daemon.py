@@ -74,7 +74,7 @@ class ConfigClass:
                 s = s.replace('\n','')
                 s = s.replace(',}','}')
                 s = s.replace(',]',']')
-                dict = json.load(conf_file)
+                dict = json.load(s)
         except Exception as e:
             print("Error occured in configClass.__init__: {}".format(e))
             pass
