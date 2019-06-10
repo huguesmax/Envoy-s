@@ -38,7 +38,7 @@ class MeterClass:
             print("HTTP error occurred: {}".format(http_err))
             return None
         except Exception as err:
-            print("Error occurred: {}".format(err))
+            print("Error occurred in MeterClass.request: {}".format(err))
             return None
         else:
             return req
@@ -64,15 +64,14 @@ class MeterClass:
 
         return result
 
-class configClass:
+class ConfigClass:
 
     def __init__(self, path):
         try:
             with open(path, "r") as conf_file:
                 dict = json.load(conf_file)
         except Exception as e:
-            print(path)
-            print("Error occured: {}".format(e))
+            print("Error occured in configClass.__init__: {}".format(e))
             pass
 
         self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
@@ -109,7 +108,7 @@ class Daemon(run.RunDaemon):
     def run(self):
 
         cwd    = self.findcwd()
-        config = configClass(os.path.join(cwd, "config.json"))
+        config = ConfigClass(os.path.join(cwd, "config.json"))
 
         while True:
             data = config.retrieve()
