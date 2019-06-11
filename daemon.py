@@ -20,7 +20,7 @@ class DeviceClass:
 
         self.wired = stats["wired"]
         self.Watts = stats["Wh"]
-        self.path  = stats["path"]
+        self.host  = stats["host"]
 
 class MeterClass:
 

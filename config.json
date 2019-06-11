@@ -6,15 +6,15 @@
   {
     "pool pump":
     {
-      "wired": false,
-      "Wh": 0,
-      "path": ""
+      "host": "localhost",
+      "wired": true,
+      "Wh": 0
     },
     "VW E-Golf":
     {
+      "host":"",
       "wired": false,
-      "Wh": 0,
-      "path": ""
+      "Wh": 0
     }
   },
   "meters":
