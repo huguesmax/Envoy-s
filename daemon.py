@@ -4,6 +4,8 @@ import json
 import os
 import objectpath
 from requests.exceptions import HTTPError
+from gpiozero import LED
+from gpiozero.pins.pigpio import PiGPIOFactory
 
 try:
     from daemons.prefab import run
@@ -20,7 +22,10 @@ class DeviceClass:
 
         self.wired = stats["wired"]
         self.Watts = stats["Wh"]
-        self.host  = stats["host"]
+
+        if "gpio" in stats and stats["gpio"]["host"] != "" and stats["gpio"]["pin"] != -1:
+            factory   = PiGPIOFactory(host=stats["gpio"]["host"])
+            self.gpio = LED(stats["gpio"]["pin"], pin_factory=factory)
 
 class MeterClass:
 
