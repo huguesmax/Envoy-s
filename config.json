@@ -10,12 +10,13 @@
       "Wh": 0,
       "gpio":
       {
+        "_comment": "you have to whitelist on the raspberry pi the machine who is running this daemon",
         "host": "localhost",
         "pin": -1
       }
     },
     "VW E-Golf":
-    {     
+    {
       "wired": false,
       "Wh": 0
     }
@@ -23,6 +24,7 @@
   "meters":
   {
     "url": "http://envoy.local/production.json",
+    "_comment": "this is the path in the json object received with the GET done upward",
     "paths":
     {
       "production": "$.production[1].wNow",

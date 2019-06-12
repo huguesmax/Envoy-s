@@ -26,6 +26,8 @@ class DeviceClass:
         if "gpio" in stats and stats["gpio"]["host"] != "" and stats["gpio"]["pin"] != -1:
             factory   = PiGPIOFactory(host=stats["gpio"]["host"])
             self.gpio = LED(stats["gpio"]["pin"], pin_factory=factory)
+        else
+            self.gpio = None
 
 class MeterClass:
 
@@ -81,7 +83,7 @@ class ConfigClass:
                 s = s.replace(',]',']')
                 dict = json.loads(s)
         except Exception as e:
-            print("Error occured in configClass.__init__: {}".format(e))
+            print("Error occured in ConfigClass.__init__: {}".format(e))
             pass
 
         self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
