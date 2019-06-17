@@ -4,7 +4,7 @@
   "start off-peak": 0,
   "devices":
   {
-    "pool pump":
+    "pool_pump":
     {
       "wired": true,
       "Wh": 0,
@@ -15,7 +15,7 @@
         "pin": -1
       }
     },
-    "VW E-Golf":
+    "VW_E-Golf":
     {
       "wired": false,
       "Wh": 0
@@ -23,12 +23,24 @@
   },
   "meters":
   {
-    "url": "http://envoy.local/production.json",
-    "_comment": "this is the path in the json object received with the GET done upward",
-    "paths":
+    "panels":
     {
-      "production": "$.production[1].wNow",
-      "consumption": "$.consumption[1].wNow"
+      "url": "http://envoy.local/production.json",
+      "_comment": "this is the path in the json object received with the GET done upward",
+      "paths":
+      {
+        "production": "$.production[1].wNow",
+        "consumption": "$.consumption[1].wNow"
+      }
+    },
+    "weather":
+    {
+      "url": "http://api.openweathermap.org/data/2.5/weather?id=3002280&appid=33972522f340ef8ab242d33f669a32bd",
+      "_comment": "this is the path in the json object received with the GET done upward",
+      "paths":
+      {
+        "temp": "$.main.temp"
+      }
     }
   }
 }

@@ -6,22 +6,22 @@ import objectpath
 from requests.exceptions import HTTPError
 from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
+from daemons.prefab import run
 
-try:
-    from daemons.prefab import run
-except ModuleNotFoundError:
-    print("No module named deamons found, please install it (pip install daemons)")
-    sys.exit(1)
-except ImportError:
-    print("No module named deamons found, please install it (pip install daemons)")
-    sys.exit(1)
-
-class DeviceClass:
+class Device:
 
     def __init__(self, stats):
 
-        self.wired = stats["wired"]
-        self.Watts = stats["Wh"]
+        self.timelit = 0
+        self.wired   = stats["wired"]
+        self.Watts   = stats["Wh"]
+
+    def change_day(self):
+        self.timelit = 0
+
+class Gpio:
+
+    def __init__(self, stats):
 
         if "gpio" in stats and stats["gpio"]["host"] != "" and stats["gpio"]["pin"] != -1:
             factory   = PiGPIOFactory(host=stats["gpio"]["host"])
@@ -29,15 +29,30 @@ class DeviceClass:
         else
             self.gpio = None
 
+    def count(self, interval):
+        if self.wired and self.gpio != None and self.gpio.is_lit:
+            self.timelit += interval
+
+class PoolPump(Device, Gpio):
+
+    def __init__(self, stats, ttl):
+
+        Device.__init__(self, stats)
+        Gpio.__init__(self, stats)
+
+        req = MeterClass.request())
+
+        self.time_to_lit = ttl #the default weather value is in Kelvin
+
 class MeterClass:
 
-    def __init__(self, url, paths):
-        self.url   = url
-        self.paths = paths
+    def __init__(self, stats):
+        self.url   = stats["url"]
+        self.paths = stats["paths"]
 
-    def request(self):
+    def __request(self):
 
-        req = requests.get(self.url)
+        req = requests.get(url)
 
         try:
             req.raise_for_status()
@@ -50,12 +65,15 @@ class MeterClass:
         else:
             return req
 
-    def retrieve(self, config):
+    def retrieve(self):
         """
         gather informations from the url gave in the config file
         and keep only want we want from the json returned by the GET
         """
-        req = self.request()
+        req = self.__request()
+
+        if req is None:
+            return req
 
         json_tree = objectpath.Tree(req.json())
         result    = dict()
@@ -71,7 +89,7 @@ class MeterClass:
 
         return result
 
-class ConfigClass:
+class Material:
 
     def __init__(self, path):
         try:
@@ -86,21 +104,51 @@ class ConfigClass:
             print("Error occured in ConfigClass.__init__: {}".format(e))
             pass
 
-        self.devices  = { key:DeviceClass(value) for key, value in dict["devices"].items() }
-        self.meter    = MeterClass(dict["meters"]["url"], dict["meters"]["paths"])
-        self.interval = dict["interval"]
-
         self.start_peak    = dict["start peak"]
         self.start_offpeak = dict["start off-peak"]
 
-    def retrieve(self):
-        return self.meter.retrieve(self)
+        self.panels   = MeterClass(dict["meters"]["panels"])
+        self.weather  = MeterClass(dict["meters"]["weather"])
+        self.interval = dict["interval"]
+        self.devices  = dict()
+
+        weather = self.weather.retrieve()
+
+        if weather is None:
+            pass
+        
+        #the pool pump should be lit for the half of the temperature outside, which give this formula
+        ttl = int(weather["temp"] - 273) // 2
+
+        devices["pool_pump"] = PoolPump(dict["devices"]["pool_pump"], ttl)
+        devices["VW_E-Golf"] = None # can't create what a don't know
+
+    def energy_retrieve(self):
+        return self.panels.retrieve()
+
+    def weather_retrieve(self):
+        return self.weather.retrieve() #this temp data is in kelvin
+
+    def count(self):
+        for dev in devices.values():
+            dev.count(self.interval)
+
+    def change_day(self):
+        for dev in devices.values():
+            dev.change_day()
 
 
 class Daemon(run.RunDaemon):
 #class Daemon: #Debug
 
-    def do_the_thing(self, config, infos):
+    def setvalues(self, config):
+        """
+        appeled when starting the daemons
+        """
+        pass
+
+
+    def do_the_thing(self, data, config):
         """
         setup of booleans to turn off/on the devices availables
         """
@@ -120,13 +168,16 @@ class Daemon(run.RunDaemon):
     def run(self):
 
         cwd    = self.findcwd()
-        config = ConfigClass(os.path.join(cwd, "config.json"))
+        mat = Material(os.path.join(cwd, "config.json"))
+
+        setvalues(mat)
 
         while True:
-            data = config.retrieve()
+            mat.count()
+            data = mat.energy_retrieve()
             if data is not None:
-                self.do_the_thing(data, config)
-            time.sleep(config.interval)
+                self.do_the_thing(data, mat)
+            time.sleep(mat.interval)
 
 if __name__ == "__main__": #Debug
     d = Daemon()
