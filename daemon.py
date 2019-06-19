@@ -4,6 +4,7 @@ import requests
 import json
 import os
 import objectpath
+from enum import Enum
 from requests.exceptions import HTTPError
 from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
@@ -22,12 +23,14 @@ class Device:
     """
 
 
-    def __init__(self, stats, ttl):
+    def __init__(self, watts, ttl):
         """construtor of Device class:
-            :params stats: dict which come from the config.json
+            :params watts: dict which come from the config.json
             :params ttl:   the time_to_lit the device this day
+            :type watts:   int
+            :type ttl:     int
         """
-        self.Watts   = stats["Wh"]
+        self.Watts   = watts
         self.change_day(ttl)
 
     def change_day(self, ttl):
@@ -44,11 +47,17 @@ class Gpio:
     It only sets the self.gpio value when the host value in the config.json is not empty and the pin number is not -1
     """
 
-    def __init__(self, stats):
-
-        if "gpio" in stats and stats["gpio"]["host"] != "" and stats["gpio"]["pin"] != -1:
-            factory   = PiGPIOFactory(host=stats["gpio"]["host"])
-            self.gpio = LED(stats["gpio"]["pin"], pin_factory=factory)
+    def __init__(self, ip, pin):
+        """
+        Construtor of the class Gpio:
+            :param ip:  the http address of the raspberry pi
+            :param pin: the pin number to lit
+            :type ip:   string
+            :type pin:  int
+        """
+        if ip != "" and pin != -1:
+            factory   = PiGPIOFactory(host=ip)
+            self.gpio = LED(pin, pin_factory=factory)
         else:
             LOG.error("error occured in Gpio.__init__: cannot initialize the gpio attribute")
             self.gpio = None
@@ -64,8 +73,8 @@ class PoolPump(Device, Gpio):
     """
     def __init__(self, stats, ttl):
 
-        Device.__init__(self, stats, ttl)
-        Gpio.__init__(self, stats)
+        Device.__init__(self, stats["Wh"], ttl)
+        Gpio.__init__(self, stats["gpio"]["host"], stats["gpio"]["pin"])
 
 
 class HTTP:
@@ -76,9 +85,10 @@ class HTTP:
             :param login:  a user and a password as a tuple like this ('user', 'pwd')
             :param header: a header for the request as a dictionnary
             :type url:     string
-            :type login:  tuple<string, string>
-            :type header: dict<string, string>
-            :typ
+            :type login:   tuple
+            :type header:  dict
+            :return:       the json response of the GET
+            :rtype:        dict
         """
         if auth is None and headers is None:
             req = requests.get(url)
@@ -102,10 +112,16 @@ class HTTP:
 
     def _post(self, url, post, login=None, header=None):
         """POST request:
-            @url:    destination
-            @post:   the data to POST
-            @login:  a user and a password as a tuple like this ('user', 'pwd')
-            @header: a header for the request as a dictionnary
+            :param url:    the destination
+            :param post:   the data to post
+            :param login:  a user and a password as a tuple like this ('user', 'pwd'), it is optional
+            :param header: a header for the request as a dictionnary, it is optional
+            :type url:     string
+            :type post:    dict
+            :type login:   tuple
+            :type header:  dict
+            :return:       the json response of the POST
+            :rtype:        dict
         """
         if auth is None and headers is None:
             req = requests.post(url, data=post)
@@ -127,14 +143,65 @@ class HTTP:
         else:
             return req.json()
 
+class VW_EGolf(Device, HTTP):
+    """
+    the main class for the Golf charge device
+    """
 
+    BASE  = "http://{h}/r?rapi=%24"
+    Cmd   = Enum("sleep", "reset", "enable", "disable")
+
+    __CmdToUrl =
+    {
+        Cmd.sleep:   "FS",
+        Cmd.reset:   "FR",
+        Cmd.enable:  "FE",
+        Cmd.disable: "FD"
+    }
+
+    def __init__(self, host):
+        """
+        Construtor of the class VW_EGolf:
+            :param host: the host of the charger
+            :type host:  string
+        """
+        Device.__init__(self)
+        BASE = BASE.format(h=host)
+
+    def command(self, cmd):
+        """
+        command to the charger:
+            :param cmd: the command to pass to the charger
+            :type cmd:  Cmd enum
+            :return:    if it has been done or not
+            :rtype:     bool
+        """
+        pass
+        url    = BASE + __CmdToUrl[cmd]
+        result = self._get(url)
+
+    def set_charging_rate(self, amp):
+        """
+        change the charging rate in ampere:
+            :param amp: new charging rate
+            :type amp: int
+            :return:    if it has been done or not
+            :rtype:     bool
+        """
+        pass
+        url    = BASE + "SC+" + str(amp)
+        result = self._get(url)
+        
 class MeterClass(HTTP):
     """
-    The MeterClass permit to retrieve datas from the differents data sources on the web using HTTP requests
+    The MeterClass permit to retrieve datas from the differents data sources on the web using HTTP requests and find the interesting values
+    It setups:
+        * url:   the destination of the future requests
+        * paths: a dictionnary containing the paths to the values used
     """
-    def __init__(self, stats):
-        self.url   = stats["url"]
-        self.paths = stats["paths"]
+    def __init__(self, url, paths):
+        self.url   = url
+        self.paths = paths
 
     def retrieve(self):
         """
@@ -163,7 +230,16 @@ class MeterClass(HTTP):
 
 class Material:
 
+    """
+    The main class which contains data of the script
+    """
+
     def __init__(self, path):
+        """
+        Constructot of the Material Class:
+            :param path: the path of the json to parse
+            :type path: string
+        """
         try:
             with open(path, "r") as f:
                 s = f.read()
@@ -181,8 +257,8 @@ class Material:
         self.start_offpeak = data["start off-peak hour"]
         self.offpeak_price = data["offpeak price"]
 
-        self.panels   = MeterClass(data["meters"]["panels"])
-        self.weather  = MeterClass(data["meters"]["weather"])
+        self.panels   = MeterClass(data["meters"]["panels"]["url"],  data["meters"]["panels"]["paths"])
+        self.weather  = MeterClass(data["meters"]["weather"]["url"], data["meters"]["weather"]["paths"])
         self.interval = data["interval"]
         self.devices  = dict()
 
@@ -199,16 +275,20 @@ class Material:
             devices["VW_E-Golf"] = None # can't create what a don't know
 
     def energy_retrieve(self):
+        """encapsulation of the panel data"""
         return self.panels.retrieve()
 
     def weather_retrieve(self):
+        """encapsulation of the weather data"""
         return self.weather.retrieve() #this temp data is in kelvin
 
     def count(self):
+        """add the interval between the calls to all counts on values"""
         for dev in devices.values():
             dev.count(self.interval)
 
     def change_day(self):
+        """doing the resets need when changing day"""
         for dev in devices.values():
             dev.change_day()
 
@@ -247,6 +327,8 @@ class Daemon(run.RunDaemon):
         return self.pidfile[0:(i+1)]
 
     def run(self):
+
+        """main function"""
 
         cwd    = self.findcwd()
         mat = Material(os.path.join(cwd, "config.json"))

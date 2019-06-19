@@ -20,7 +20,8 @@
     "VW_E-Golf":
     {
       "wired": false,
-      "Wh": 0
+      "Wh": 0,
+      "host": "localhost"
     }
   },
   "meters":
