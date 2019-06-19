@@ -191,7 +191,7 @@ class VW_EGolf(Device, HTTP):
         pass
         url    = BASE + "SC+" + str(amp)
         result = self._get(url)
-        
+
 class MeterClass(HTTP):
     """
     The MeterClass permit to retrieve datas from the differents data sources on the web using HTTP requests and find the interesting values
@@ -272,7 +272,7 @@ class Material:
             devices["pool_pump"] = PoolPump(data["devices"]["pool_pump"], ttl)
 
         if data["devices"]["VW_E-Golf"]["wired"]:
-            devices["VW_E-Golf"] = None # can't create what a don't know
+            devices["VW_E-Golf"] = VW_EGolf(data["devices"]["VW_E-Golf"]["host"])
 
     def energy_retrieve(self):
         """encapsulation of the panel data"""
