@@ -13,14 +13,19 @@ LOG = simple_startstop.LOG
 
 class Device:
 
-    def __init__(self, stats):
+    def __init__(self, stats, ttl):
 
         self.timelit = 0
         self.wired   = stats["wired"]
         self.Watts   = stats["Wh"]
+        self.change_day(ttl)
 
-    def change_day(self):
+    def change_day(self, ttl):
         self.timelit = 0
+        self.time_to_lit = ttl
+
+    def IsEnoughLitten(self):
+        return timelit >= time_to_lit
 
 class Gpio:
 
@@ -40,15 +45,9 @@ class PoolPump(Device, Gpio):
 
     def __init__(self, stats, ttl):
 
-        Device.__init__(self, stats)
+        Device.__init__(self, stats, ttl)
         Gpio.__init__(self, stats)
 
-        req = MeterClass.request())
-
-        self.time_to_lit = ttl #the default weather value is in Kelvin
-
-    def IsEnoughLitten(self):
-        return timelit >= time_to_lit
 
 class MeterClass:
 
@@ -110,8 +109,10 @@ class Material:
             LOG.error("Error occured in Material.__init__: {}".format(e))
             pass
 
-        self.start_peak    = dict["start peak"]
-        self.start_offpeak = dict["start off-peak"]
+        self.start_peak    = dict["start peak hour"]
+        self.peak_price    = dict["peak price"]
+        self.start_offpeak = dict["start off-peak hour"]
+        self.offpeak_price = dict["offpeak price"]
 
         self.panels   = MeterClass(dict["meters"]["panels"])
         self.weather  = MeterClass(dict["meters"]["weather"])
@@ -119,9 +120,6 @@ class Material:
         self.devices  = dict()
 
         weather = self.weather.retrieve()
-
-        if weather is None:
-            pass
 
         #the pool pump should be lit for the half of the temperature outside as hours, which give this formula
         ttl = int(weather["temp"] - 273) // 2 * 3600
