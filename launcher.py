@@ -2,8 +2,7 @@ import logging
 import os
 import sys
 import time
-
-from daemon import Daemon
+import daemon
 
 
 if __name__ == '__main__':
@@ -13,7 +12,7 @@ if __name__ == '__main__':
     pidfile = os.path.join(os.getcwd(), "daemon.pid")
 
     logging.basicConfig(filename=logfile, level=logging.DEBUG)
-    d = Daemon(pidfile=pidfile)
+    d = daemon.Daemon(pidfile=pidfile)
 
     if action == "start":
 

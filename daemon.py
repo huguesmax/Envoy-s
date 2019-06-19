@@ -1,4 +1,5 @@
 import time
+import logging
 import requests
 import json
 import os
@@ -7,6 +8,8 @@ from requests.exceptions import HTTPError
 from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 from daemons.prefab import run
+
+LOG = simple_startstop.LOG
 
 class Device:
 
@@ -30,7 +33,7 @@ class Gpio:
             self.gpio = None
 
     def count(self, interval):
-        if self.wired and self.gpio != None and self.gpio.is_lit:
+        if self.wired and self.gpio and self.gpio.is_lit:
             self.timelit += interval
 
 class PoolPump(Device, Gpio):
@@ -43,6 +46,9 @@ class PoolPump(Device, Gpio):
         req = MeterClass.request())
 
         self.time_to_lit = ttl #the default weather value is in Kelvin
+
+    def IsEnoughLitten(self):
+        return timelit >= time_to_lit
 
 class MeterClass:
 
@@ -57,10 +63,10 @@ class MeterClass:
         try:
             req.raise_for_status()
         except HTTPError as http_err:
-            print("HTTP error occurred: {}".format(http_err))
+            LOG.error("HTTP error occurred: {}".format(http_err))
             return None
         except Exception as err:
-            print("Error occurred in MeterClass.request: {}".format(err))
+            LOG.error("Error occurred in MeterClass.request: {}".format(err))
             return None
         else:
             return req
@@ -85,7 +91,7 @@ class MeterClass:
             if type(value) is float:
                 result[key] = value
             else:
-                raise KeyError("Could not find the key {} in the curled json with the query: {}".format(key, query))
+                LOG.error("Could not find the key {} in the curled json with the query: {}".format(key, query))
 
         return result
 
@@ -101,7 +107,7 @@ class Material:
                 s = s.replace(',]',']')
                 dict = json.loads(s)
         except Exception as e:
-            print("Error occured in ConfigClass.__init__: {}".format(e))
+            LOG.error("Error occured in Material.__init__: {}".format(e))
             pass
 
         self.start_peak    = dict["start peak"]
@@ -116,9 +122,9 @@ class Material:
 
         if weather is None:
             pass
-        
-        #the pool pump should be lit for the half of the temperature outside, which give this formula
-        ttl = int(weather["temp"] - 273) // 2
+
+        #the pool pump should be lit for the half of the temperature outside as hours, which give this formula
+        ttl = int(weather["temp"] - 273) // 2 * 3600
 
         devices["pool_pump"] = PoolPump(dict["devices"]["pool_pump"], ttl)
         devices["VW_E-Golf"] = None # can't create what a don't know
@@ -147,12 +153,18 @@ class Daemon(run.RunDaemon):
         """
         pass
 
+        self.deviceslit = 0
+        self.
 
-    def do_the_thing(self, data, config):
+
+    def do_the_thing(self, material):
         """
         setup of booleans to turn off/on the devices availables
         """
         pass
+
+        data = material.energy_retrieve()
+
 
     def findcwd(self):
         """
@@ -173,11 +185,9 @@ class Daemon(run.RunDaemon):
         setvalues(mat)
 
         while True:
-            mat.count()
-            data = mat.energy_retrieve()
-            if data is not None:
-                self.do_the_thing(data, mat)
+            self.do_the_thing(mat)
             time.sleep(mat.interval)
+            mat.count()
 
 if __name__ == "__main__": #Debug
     d = Daemon()
