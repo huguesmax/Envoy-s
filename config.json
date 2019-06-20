@@ -1,9 +1,11 @@
 {
   "interval": 300,
+  "changing day hour": 12
   "start peak": 0,
   "start off-peak": 0,
   "peak price": 0,
   "offpeak price":0
+  "selling price": 0
   "devices":
   {
     "pool_pump":

@@ -144,8 +144,9 @@ class HTTP:
             return req.json()
 
 class VW_EGolf(Device, HTTP):
+    pass
     """
-    the main class for the Golf charge device
+    the main class for the Golf charge device              /!\ actually unable to work
     """
 
     BASE  = "http://{h}/r?rapi=%24"
@@ -167,6 +168,7 @@ class VW_EGolf(Device, HTTP):
         """
         Device.__init__(self)
         BASE = BASE.format(h=host)
+        self.__charging_rate = self.get_charging_rate()
 
     def command(self, cmd):
         """
@@ -180,17 +182,32 @@ class VW_EGolf(Device, HTTP):
         url    = BASE + __CmdToUrl[cmd]
         result = self._get(url)
 
-    def set_charging_rate(self, amp):
+
+    def get_charging_rate(self):
+        """charging rate getter from the charger"""
+        pass
+        url    = BASE + "GC"
+        result = self._get(url)
+        #sort infos to get the value and return it
+
+    @property
+    def charging_rate(self):
+        return __charging_rate
+
+    @charging_rate.setter
+    def set_charging_rate(self, charging_rate):
         """
         change the charging rate in ampere:
-            :param amp: new charging rate
-            :type amp: int
+            :param charging_rate: new charging rate
+            :type charging_rate: int
             :return:    if it has been done or not
             :rtype:     bool
         """
         pass
         url    = BASE + "SC+" + str(amp)
         result = self._get(url)
+        #if $OK then change the attribute
+        #self.__charging_rate = charging_rate
 
 class MeterClass(HTTP):
     """
@@ -252,15 +269,18 @@ class Material:
             LOG.error("Error occured in Material.__init__: {}".format(e))
             pass
 
-        self.start_peak    = data["start peak hour"]
-        self.peak_price    = data["peak price"]
-        self.start_offpeak = data["start off-peak hour"]
-        self.offpeak_price = data["offpeak price"]
+        self.selling_price  = data["selling price"]
+        self.start_peak     = data["start peak hour"]
+        self.peak_price     = data["peak price"]
+        self.start_offpeak  = data["start off-peak hour"]
+        self.offpeak_price  = data["offpeak price"]
+        self.changing_day_h = data["changing day hour"]
 
-        self.panels   = MeterClass(data["meters"]["panels"]["url"],  data["meters"]["panels"]["paths"])
-        self.weather  = MeterClass(data["meters"]["weather"]["url"], data["meters"]["weather"]["paths"])
-        self.interval = data["interval"]
-        self.devices  = dict()
+        self.panels    = MeterClass(data["meters"]["panels"]["url"],  data["meters"]["panels"]["paths"])
+        self.weather   = MeterClass(data["meters"]["weather"]["url"], data["meters"]["weather"]["paths"])
+        self.interval  = data["interval"]
+        self.devices   = dict()
+        self.day_count = 24 * 3600
 
         weather = self.weather_retrieve()
         #the pool pump should be lit for the half of the temperature outside as hours, which give this formula
@@ -284,35 +304,71 @@ class Material:
 
     def count(self):
         """add the interval between the calls to all counts on values"""
+        self.day_count -= self.interval
         for dev in devices.values():
             dev.count(self.interval)
 
     def change_day(self):
-        """doing the resets need when changing day"""
+        """doing the resets needed when changing day"""
+        self.day_count = 24 * 3600
         for dev in devices.values():
             dev.change_day()
-
 
 class Daemon(run.RunDaemon):
 #class Daemon: #Debug
 
-    def setvalues(self, config):
+    def IsWorthy(self, material, device):
         """
-        appeled when starting the daemons
+        determine if this thing is worthy to light
+            :param material: the whole object material
+            :param device:   the device concerned
+            :return:         says if in term of price this is worthy to litten
+            :rtype:          bool
         """
-        pass
 
-        self.devices_on  = 0
-        self.devices_off = 0
+        data = material.energy_retrieve()
+        now  = time.localtime()
+
+        if now.tm_hour >= material.start_offpeak or now.tm_hour < material.start_peak: #the price is offpeak
+            actual_price = material.offpeak_price
+            other_price  = material.peak_price
+        else:
+            actual_price = material.peak_price
+            other_price  = material.offpeak_price
+
+        return (data["consumption"] + device.Watts - data["production"])*actual_price <= device.Watts*other_price
 
 
     def do_the_thing(self, material):
         """
         setup of booleans to turn off/on the devices availables
         """
-        pass
 
-        data = material.energy_retrieve()
+        if data is None or weather is None:
+            LOG.error("Daemon.do_the_thing: something went wrong while retrieving data or weather, stopping the lap")
+            pass
+
+        for device in material.devices.values():
+
+            worth_to_light = self.IsWorthy(material, device)
+
+            if isinstance(device, Gpio):
+
+                if !IsEnoughLitten():
+
+                    if !device.gpio.is_lit and worth_to_light:
+                        device.gpio.on()
+
+                    elif device.gpio.is_lit and !worth_to_light:
+                        device.gpio.off()
+
+                    elif !device.gpio.is_lit and material.time_to_lit <= material.day_count:
+                        device.gpio.on()
+
+                else:
+
+                    if device.gpio.is_lit:
+                        device.gpio.off()
 
 
     def findcwd(self):
@@ -333,12 +389,14 @@ class Daemon(run.RunDaemon):
         cwd    = self.findcwd()
         mat = Material(os.path.join(cwd, "config.json"))
 
-        setvalues(mat)
-
         while True:
+            LOG.info("Daemon.run: Starting a lap")
             self.do_the_thing(mat)
             time.sleep(mat.interval)
             mat.count()
+            if mat.day_count < mat.interval:
+                mat.change_day()
+                LOG.info("Daemon.run: changing the day")
 
 if __name__ == "__main__": #Debug
     d = Daemon()
