@@ -315,6 +315,10 @@ class Daemon(run.RunDaemon):
         data = material.energy_retrieve()
         now  = time.localtime()
 
+        if data is None:
+            logging.error("Daemon.do_the_thing: something went wrong while retrieving data from panels, stopping the lap")
+            pass
+
         if now.tm_hour >= material.start_offpeak or now.tm_hour < material.start_peak: #the price is offpeak
             actual_price = material.offpeak_price
             other_price  = material.peak_price
@@ -329,10 +333,6 @@ class Daemon(run.RunDaemon):
         """
         setup of booleans to turn off/on the devices availables
         """
-
-        if data is None or weather is None:
-            logging.error("Daemon.do_the_thing: something went wrong while retrieving data or weather, stopping the lap")
-            pass
 
         for device in material.devices.values():
 
