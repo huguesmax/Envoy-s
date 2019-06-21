@@ -10,7 +10,7 @@ from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 from daemons.prefab import run
 
-LOG = simple_startstop.LOG
+logging.basicConfig(filename=logfile, level=logging.DEBUG)
 
 class Device:
     """
@@ -59,7 +59,7 @@ class Gpio:
             factory   = PiGPIOFactory(host=ip)
             self.gpio = LED(pin, pin_factory=factory)
         else:
-            LOG.error("error occured in Gpio.__init__: cannot initialize the gpio attribute")
+            logging.error("error occured in Gpio.__init__: cannot initialize the gpio attribute")
             self.gpio = None
 
     def count(self, interval):
@@ -78,6 +78,21 @@ class PoolPump(Device, Gpio):
 
 
 class HTTP:
+
+    def __try_errors(self, req):
+        """
+        just here to find if there is an error in the request
+        """
+        try:
+            req.raise_for_status()
+        except HTTPError as http_err:
+            logging.error("HTTP error occurred: {}".format(http_err))
+            return None
+        except Exception as err:
+            logging.error("Error occurred in HTTP._get: {}".format(err))
+            return None
+        else:
+            return req
 
     def _get(self, url, login=None, header=None):
         """GET request:
@@ -99,16 +114,7 @@ class HTTP:
         else:
             req = requests.get(url, headers=header, auth=login)
 
-        try:
-            req.raise_for_status()
-        except HTTPError as http_err:
-            LOG.error("HTTP error occurred: {}".format(http_err))
-            return None
-        except Exception as err:
-            LOG.error("Error occurred in HTTP._get: {}".format(err))
-            return None
-        else:
-            return req.json()
+        return try_errors(req).json()
 
     def _post(self, url, post, login=None, header=None):
         """POST request:
@@ -126,22 +132,13 @@ class HTTP:
         if auth is None and headers is None:
             req = requests.post(url, data=post)
         elif headers is None:
-            req = requests.get(url, data=post, auth=login)
+            req = requests.post(url, data=post, auth=login)
         elif auth is None:
-            req = requests.get(url, data=post, headers=header)
+            req = requests.post(url, data=post, headers=header)
         else:
-            req = requests.get(url, data=post, headers=header, auth=login)
+            req = requests.post(url, data=post, headers=header, auth=login)
 
-        try:
-            req.raise_for_status()
-        except HTTPError as http_err:
-            LOG.error("HTTP error occurred: {}".format(http_err))
-            return None
-        except Exception as err:
-            LOG.error("Error occurred in HTTP._get: {}".format(err))
-            return None
-        else:
-            return req.json()
+        return try_errors(req).json()
 
 class VW_EGolf(Device, HTTP):
     pass
@@ -152,8 +149,7 @@ class VW_EGolf(Device, HTTP):
     BASE  = "http://{h}/r?rapi=%24"
     Cmd   = Enum("sleep", "reset", "enable", "disable")
 
-    __CmdToUrl =
-    {
+    __CmdToUrl = {
         Cmd.sleep:   "FS",
         Cmd.reset:   "FR",
         Cmd.enable:  "FE",
@@ -228,7 +224,7 @@ class MeterClass(HTTP):
         data = self._get(self.url)
 
         if data is None:
-            LOG.error("error occured in MeterClass.retrieve: get request failed")
+            logging.error("error occured in MeterClass.retrieve: get request failed")
             return data
 
         json_tree = objectpath.Tree(data)
@@ -241,7 +237,7 @@ class MeterClass(HTTP):
             if type(value) is float:
                 result[key] = value
             else:
-                LOG.error("Could not find the key {} in the curled json with the query: {}".format(key, query))
+                logging.error("Could not find the key {} in the curled json with the query: {}".format(key, query))
 
         return result
 
@@ -266,7 +262,7 @@ class Material:
                 s = s.replace(',]',']')
                 data = json.loads(s)
         except Exception as e:
-            LOG.error("Error occured in Material.__init__: {}".format(e))
+            logging.error("Error occured in Material.__init__: {}".format(e))
             pass
 
         self.selling_price  = data["selling price"]
@@ -345,7 +341,7 @@ class Daemon(run.RunDaemon):
         """
 
         if data is None or weather is None:
-            LOG.error("Daemon.do_the_thing: something went wrong while retrieving data or weather, stopping the lap")
+            logging.error("Daemon.do_the_thing: something went wrong while retrieving data or weather, stopping the lap")
             pass
 
         for device in material.devices.values():
@@ -354,15 +350,15 @@ class Daemon(run.RunDaemon):
 
             if isinstance(device, Gpio):
 
-                if !IsEnoughLitten():
+                if not IsEnoughLitten():
 
-                    if !device.gpio.is_lit and worth_to_light:
+                    if not device.gpio.is_lit and worth_to_light:
                         device.gpio.on()
 
-                    elif device.gpio.is_lit and !worth_to_light:
+                    elif device.gpio.is_lit and not worth_to_light:
                         device.gpio.off()
 
-                    elif !device.gpio.is_lit and material.time_to_lit <= material.day_count:
+                    elif not device.gpio.is_lit and material.time_to_lit <= material.day_count:
                         device.gpio.on()
 
                 else:
@@ -390,13 +386,13 @@ class Daemon(run.RunDaemon):
         mat = Material(os.path.join(cwd, "config.json"))
 
         while True:
-            LOG.info("Daemon.run: Starting a lap")
+            logging.info("Daemon.run: Starting a lap")
             self.do_the_thing(mat)
             time.sleep(mat.interval)
             mat.count()
             if mat.day_count < mat.interval:
                 mat.change_day()
-                LOG.info("Daemon.run: changing the day")
+                logging.info("Daemon.run: changing the day")
 
 if __name__ == "__main__": #Debug
     d = Daemon()
