@@ -10,7 +10,7 @@ from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 from daemons.prefab import run
 
-logging.basicConfig(filename=logfile, level=logging.DEBUG)
+logging.basicConfig(filename="daemon.log", level=logging.DEBUG)
 
 class Device:
     """
@@ -147,7 +147,7 @@ class VW_EGolf(Device, HTTP):
     """
 
     BASE  = "http://{h}/r?rapi=%24"
-    Cmd   = Enum("sleep", "reset", "enable", "disable")
+    Cmd   = Enum("Cmd", "sleep reset enable disable")
 
     __CmdToUrl = {
         Cmd.sleep:   "FS",
