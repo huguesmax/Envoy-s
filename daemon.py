@@ -105,16 +105,16 @@ class HTTP:
             :return:       the json response of the GET
             :rtype:        dict
         """
-        if auth is None and headers is None:
+        if login is None and header is None:
             req = requests.get(url)
-        elif headers is None:
+        elif header is None:
             req = requests.get(url, auth=login)
-        elif auth is None:
+        elif login is None:
             req = requests.get(url, headers=header)
         else:
             req = requests.get(url, headers=header, auth=login)
 
-        return try_errors(req).json()
+        return self.__try_errors(req).json()
 
     def _post(self, url, post, login=None, header=None):
         """POST request:
@@ -129,16 +129,16 @@ class HTTP:
             :return:       the json response of the POST
             :rtype:        dict
         """
-        if auth is None and headers is None:
+        if login is None and header is None:
             req = requests.post(url, data=post)
-        elif headers is None:
+        elif header is None:
             req = requests.post(url, data=post, auth=login)
-        elif auth is None:
+        elif login is None:
             req = requests.post(url, data=post, headers=header)
         else:
             req = requests.post(url, data=post, headers=header, auth=login)
 
-        return try_errors(req).json()
+        return self.__try_errors(req).json()
 
 class VW_EGolf(Device, HTTP):
     pass
@@ -228,16 +228,7 @@ class MeterClass(HTTP):
             return data
 
         json_tree = objectpath.Tree(data)
-        result    = dict()
-
-        for key, query in self.paths.items():
-
-            value = json_tree.execute(query)
-
-            if type(value) is float:
-                result[key] = value
-            else:
-                logging.error("Could not find the key {} in the curled json with the query: {}".format(key, query))
+        result = {key:json_tree.execute(query) for key, query in self.paths.items()}
 
         return result
 
@@ -268,7 +259,7 @@ class Material:
         self.selling_price  = data["selling price"]
         self.start_peak     = data["start peak hour"]
         self.peak_price     = data["peak price"]
-        self.start_offpeak  = data["start off-peak hour"]
+        self.start_offpeak  = data["start offpeak hour"]
         self.offpeak_price  = data["offpeak price"]
         self.changing_day_h = data["changing day hour"]
 
@@ -283,12 +274,11 @@ class Material:
         ttl = int(weather["temp"] - 273) // 2 * 3600
 
         #here is the manual part to modify to change the behaviour of this script
-
         if data["devices"]["pool_pump"]["wired"]:
-            devices["pool_pump"] = PoolPump(data["devices"]["pool_pump"], ttl)
+            self.devices["pool_pump"] = PoolPump(data["devices"]["pool_pump"], ttl)
 
         if data["devices"]["VW_E-Golf"]["wired"]:
-            devices["VW_E-Golf"] = VW_EGolf(data["devices"]["VW_E-Golf"]["host"])
+            self.devices["VW_E-Golf"] = VW_EGolf(data["devices"]["VW_E-Golf"]["host"])
 
     def energy_retrieve(self):
         """encapsulation of the panel data"""
