@@ -34,8 +34,8 @@
       "_comment": "this is the path in the json object received with the GET done upward",
       "paths":
       {
-        "production": "$.production[1].wNow",
-        "consumption": "$.consumption[1].wNow"
+        "production": "production[1].wNow",
+        "consumption": "consumption[1].wNow"
       }
     },
     "weather":
@@ -44,7 +44,7 @@
       "_comment": "this is the path in the json object received with the GET done upward",
       "paths":
       {
-        "temp": "$.main.temp"
+        "temp": "main.temp"
       }
     }
   }

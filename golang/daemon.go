@@ -1,5 +1,5 @@
 // THIS GO SCRIPT IS JUST A TRANSPOSITION OF THE PYTHON SCRIPT
-package main
+package maine
 
 import (
 	"io/ioutil"
