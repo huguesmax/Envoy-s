@@ -4,6 +4,7 @@ import requests
 import json
 import os
 import objectpath
+import datetime
 from enum import Enum
 from requests.exceptions import HTTPError
 from gpiozero import LED
@@ -35,11 +36,12 @@ class Device:
 
     def change_day(self, ttl):
         """used to reset the @timelit and set a new value to @time_to_lit"""
+        logging.info("the device named {} will be light {} hours this day".format(self, ttl // 3600))
         self.timelit = 0
         self.time_to_lit = ttl
 
     def IsEnoughLitten(self):
-        return timelit >= time_to_lit
+        return self.timelit >= self.time_to_lit
 
 class Gpio:
     """
@@ -65,6 +67,7 @@ class Gpio:
     def count(self, interval):
         """used to increment the timelit data of the device only if the gpio is lit and if the gpio exist"""
         if self.gpio != None and self.gpio.is_lit:
+            logging.info("the device named {} is lit so added {} secondes to his time litted".format(self, interval))
             self.timelit += interval
 
 class PoolPump(Device, Gpio):
@@ -76,6 +79,8 @@ class PoolPump(Device, Gpio):
         Device.__init__(self, stats["Wh"], ttl)
         Gpio.__init__(self, stats["gpio"]["host"], stats["gpio"]["pin"])
 
+    def __repr__(self):
+        return "Pool pump"
 
 class HTTP:
 
@@ -212,23 +217,26 @@ class MeterClass(HTTP):
         * url:   the destination of the future requests
         * paths: a dictionnary containing the paths to the values used
     """
-    def __init__(self, url, paths):
-        self.url   = url
-        self.paths = paths
+    def __init__(self, **datas):
+        self.data = datas
 
     def retrieve(self):
         """
         gather informations from the url gave in the config file
         and keep only want we want from the json returned by the GET
         """
-        data = self._get(self.url)
 
-        if data is None:
-            logging.error("error occured in MeterClass.retrieve: get request failed")
-            return data
+        result = dict()
 
-        json_tree = objectpath.Tree(data)
-        result = {key:json_tree.execute(query) for key, query in self.paths.items()}
+        for k, v in self.data.items():
+            val = self._get(v["url"])
+
+            if val is None:
+                logging.error("error occured in MeterClass.retrieve: get request failed")
+                return val
+
+            json_tree = objectpath.Tree(val)
+            result[k] = json_tree.execute(v["path"])
 
         return result
 
@@ -263,11 +271,11 @@ class Material:
         self.offpeak_price  = data["offpeak price"]
         self.changing_day_h = data["changing day hour"]
 
-        self.panels    = MeterClass(data["meters"]["panels"]["url"],  data["meters"]["panels"]["paths"])
-        self.weather   = MeterClass(data["meters"]["weather"]["url"], data["meters"]["weather"]["paths"])
+        self.panels    = MeterClass(production=data["meters"]["panels"]["production"], consumption=data["meters"]["panels"]["consumption"])
+        self.weather   = MeterClass(temp=data["meters"]["weather"]["temp"])
         self.interval  = data["interval"]
         self.devices   = dict()
-        self.day_count = 24 * 3600
+        self.day_count = self.time_until_next_midday()
 
         weather = self.weather_retrieve()
         #the pool pump should be lit for the half of the temperature outside as hours, which give this formula
@@ -282,28 +290,76 @@ class Material:
 
     def energy_retrieve(self):
         """encapsulation of the panel data"""
-        return self.panels.retrieve()
+        res = self.panels.retrieve()
+        logging.info("energy retrieve done this result: {}".format(res))
+        return res
 
     def weather_retrieve(self):
         """encapsulation of the weather data"""
-        return self.weather.retrieve() #this temp data is in kelvin
+        res = self.weather.retrieve()
+        logging.info("weather retrieve done this result: {}".format(res))
+        return res #this temp data is in kelvin
 
     def count(self):
         """add the interval between the calls to all counts on values"""
+        logging.info("adding times on all devices")
         self.day_count -= self.interval
-        for dev in devices.values():
+        for dev in self.devices.values():
             dev.count(self.interval)
 
     def change_day(self):
         """doing the resets needed when changing day"""
+        logging.info("changing day of devices")
         self.day_count = 24 * 3600
         for dev in devices.values():
             dev.change_day()
 
+    def time_until_next_midday(self):
+        dt = datetime.datetime.now()
+
+        if dt.hour >= 12:
+            return ((24 - dt.hour - 1) * 3600) + ((60 - dt.minute - 1) * 60) + (60 - dt.second) + 12 * 3600
+        else:
+            return ((24 - dt.hour - 1) * 3600) + ((60 - dt.minute - 1) * 60) + (60 - dt.second) - 12 * 3600
+
+
+
 class Daemon(run.RunDaemon):
 #class Daemon: #Debug
 
-    def IsWorthy(self, material, device):
+    def pause(self):
+
+        global pause
+        pause = True
+
+        try:
+            for dev in mat.devices.values():
+                if isinstance(dev, Gpio):
+                    dev.gpio.off()
+        except Exception as e:
+            logging.info(e)
+            print(e)
+
+    def play(self):
+
+        global pause
+        pause = False
+
+        self.do_the_thing()
+
+    def stop(self):
+
+        try:
+            for dev in mat.devices.values():
+                if isinstance(dev, Gpio):
+                    dev.gpio.off()
+        except Exception as e:
+            logging.info(e)
+            print(e)
+
+        return super().stop()
+
+    def IsWorthy(self, device):
         """
         determine if this thing is worthy to light
             :param material: the whole object material
@@ -312,49 +368,56 @@ class Daemon(run.RunDaemon):
             :rtype:          bool
         """
 
-        data = material.energy_retrieve()
+        data = mat.energy_retrieve()
         now  = time.localtime()
 
         if data is None:
             logging.error("Daemon.do_the_thing: something went wrong while retrieving data from panels, stopping the lap")
             pass
 
-        if now.tm_hour >= material.start_offpeak or now.tm_hour < material.start_peak: #the price is offpeak
-            actual_price = material.offpeak_price
-            other_price  = material.peak_price
-        else:
-            actual_price = material.peak_price
-            other_price  = material.offpeak_price
+        if now.tm_hour >= mat.start_offpeak or now.tm_hour < mat.start_peak: #the price is offpeak
+            actual_price = mat.offpeak_price
+            other_price  = mat.peak_price
+        else:                                                                # the price is peak
+            actual_price = mat.peak_price
+            other_price  = mat.offpeak_price
 
         return (data["consumption"] + device.Watts - data["production"])*actual_price <= device.Watts*other_price
 
 
-    def do_the_thing(self, material):
+    def do_the_thing(self):
         """
         setup of booleans to turn off/on the devices availables
         """
 
-        for device in material.devices.values():
+        if pause:
+            pass
 
-            worth_to_light = self.IsWorthy(material, device)
+        for device in mat.devices.values():
+
+            worth_to_light = self.IsWorthy(device)
 
             if isinstance(device, Gpio):
 
-                if not IsEnoughLitten():
+                if not device.IsEnoughLitten():
 
                     if not device.gpio.is_lit and worth_to_light:
+                        logging.info("turned on {} because it was free to light".format(device))
                         device.gpio.on()
 
                     elif device.gpio.is_lit and not worth_to_light:
+                        logging.info("turned off {} because it no more free to light".format(device))
                         device.gpio.off()
 
-                    elif not device.gpio.is_lit and material.time_to_lit <= material.day_count:
+                    elif not device.gpio.is_lit and device.time_to_lit >= mat.day_count:
+                        logging.info("turned on {} because he has a time-to-lit-a-day".format(device))
                         device.gpio.on()
 
                 else:
 
                     if device.gpio.is_lit:
                         device.gpio.off()
+                        logging.info("turned off {} because it was enough litten".format(device))
 
 
     def findcwd(self):
@@ -372,17 +435,21 @@ class Daemon(run.RunDaemon):
 
         """main function"""
 
-        cwd    = self.findcwd()
-        mat = Material(os.path.join(cwd, "config.json"))
+        global cwd    #cannot use instance attributes
+        global mat    #because they are written at the end of the func
+        global pause  #but the while True prevent the function from endding
 
+        cwd   = self.findcwd()
+        mat   = Material(os.path.join(cwd, "config.json"))
+        pause = False
+        now   = datetime.datetime.now()
         while True:
-            logging.info("Daemon.run: Starting a lap")
-            self.do_the_thing(mat)
+            logging.info("Daemon.run: Starting a lap at: {}".format(now.strftime("%d/%m/%Y, %H:%M:%S")))
+            self.do_the_thing()
             time.sleep(mat.interval)
             mat.count()
             if mat.day_count < mat.interval:
                 mat.change_day()
-                logging.info("Daemon.run: changing the day")
 
 if __name__ == "__main__": #Debug
     d = Daemon()
