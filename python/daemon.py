@@ -5,6 +5,7 @@ import json
 import os
 import objectpath
 import datetime
+import asyncio
 from enum import Enum
 from requests.exceptions import HTTPError
 from gpiozero import LED
@@ -460,16 +461,21 @@ class Daemon(step.StepDaemon):
             self.mat   = Material(os.path.join(cwd, "config.json"))
             self.pause = False
 
+            self.handle(0, pause)
+            self.handle(1, play)
+
             logging.info("daemon initialized")
 
         else:
 
             logging.info("Daemon.run: Starting a lap at: {}".format(datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")))
             self.do_the_thing()
-            time.sleep(self.mat.interval)
+            await asyncio.sleep(self.mat.interval)
             self.mat.count()
             if self.mat.day_count < self.mat.interval:
                 self.mat.change_day()
+
+
 
 if __name__ == "__main__": #Debug
     d = Daemon()

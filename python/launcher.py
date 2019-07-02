@@ -13,7 +13,7 @@ if __name__ == '__main__':
         action = sys.argv[1]
     else:
         action = None
-        
+
     logfile = os.path.join(os.getcwd(), "daemon.log")
     pidfile = os.path.join(os.getcwd(), "daemon.pid")
 
@@ -34,11 +34,11 @@ if __name__ == '__main__':
 
     elif action == "pause":
 
-        d.pause()
+        d.send(0)
 
     elif action == "play":
 
-        d.play()
+        d.send(1)
 
     else:
         print(help)
