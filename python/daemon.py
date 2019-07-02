@@ -357,7 +357,7 @@ class Daemon(step.StepDaemon):
     def stop(self):
 
         try:
-            if asattr(self, 'mat'):
+            if hasattr(self, 'mat'):
                 for dev in self.mat.devices.values():
                     if isinstance(dev, Gpio):
                         dev.gpio.off()
@@ -445,7 +445,7 @@ class Daemon(step.StepDaemon):
 
         """main function"""
 
-        if hasattr(self, 'initialized'):
+        if not hasattr(self, 'initialized'):
 
             self.initialized = True
 
