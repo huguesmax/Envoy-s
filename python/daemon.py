@@ -449,7 +449,8 @@ class Daemon(step.StepDaemon):
 
             self.initialized = True
 
-            self.cwd   = self.findcwd()
+            cwd   = self.findcwd()
+
             self.mat   = Material(os.path.join(cwd, "config.json"))
             self.pause = False
 
