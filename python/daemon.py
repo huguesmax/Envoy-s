@@ -340,19 +340,25 @@ class Daemon(step.StepDaemon):
             logging.info(e)
             print(e)
 
-        str = "Paused process"
-        print(str)
-        logging.info(str)
+        else:
+            str = "Paused process"
+            print(str)
+            logging.info(str)
 
     def play(self):
 
-        self.pause = False
+        try:
+            self.pause = False
+            self.do_the_thing()
 
-        self.do_the_thing()
+        except Exception as e:
+            logging.info(e)
+            print(e)
 
-        str = "Restarted process"
-        print(str)
-        logging.info(str)
+        else:
+            str = "Restarted process"
+            print(str)
+            logging.info(str)
 
     def stop(self):
 
@@ -460,10 +466,10 @@ class Daemon(step.StepDaemon):
 
             logging.info("Daemon.run: Starting a lap at: {}".format(datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")))
             self.do_the_thing()
-            time.sleep(mat.interval)
-            mat.count()
-            if mat.day_count < mat.interval:
-                mat.change_day()
+            time.sleep(self.mat.interval)
+            self.mat.count()
+            if self.mat.day_count < self.mat.interval:
+                self.mat.change_day()
 
 if __name__ == "__main__": #Debug
     d = Daemon()
