@@ -9,7 +9,7 @@ from enum import Enum
 from requests.exceptions import HTTPError
 from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
-from daemons.prefab import run
+from daemons.prefab import step
 
 logging.basicConfig(filename="daemon.log", level=logging.DEBUG)
 
@@ -324,7 +324,7 @@ class Material:
 
 
 
-class Daemon(run.RunDaemon):
+class Daemon(step.StepDaemon):
 #class Daemon: #Debug
 
     def pause(self):
@@ -336,9 +336,14 @@ class Daemon(run.RunDaemon):
             for dev in mat.devices.values():
                 if isinstance(dev, Gpio):
                     dev.gpio.off()
+
         except Exception as e:
             logging.info(e)
             print(e)
+
+        str = "Paused process"
+        print(str)
+        logging.info(str)
 
     def play(self):
 
@@ -347,17 +352,23 @@ class Daemon(run.RunDaemon):
 
         self.do_the_thing()
 
+        str = "Restarted process"
+        print(str)
+        logging.info(str)
+
     def stop(self):
 
         try:
             for dev in mat.devices.values():
                 if isinstance(dev, Gpio):
                     dev.gpio.off()
+                    
         except Exception as e:
             logging.info(e)
             print(e)
 
-        return super().stop()
+        finally:
+            return super().stop()
 
     def IsWorthy(self, device):
         """
@@ -431,20 +442,25 @@ class Daemon(run.RunDaemon):
 
         return self.pidfile[0:(i+1)]
 
-    def run(self):
+    def step(self):
 
         """main function"""
 
-        global cwd    #cannot use instance attributes
-        global mat    #because they are written at the end of the func
-        global pause  #but the while True prevent the function from endding
+        if hasattr(self, 'initialized'):
 
-        cwd   = self.findcwd()
-        mat   = Material(os.path.join(cwd, "config.json"))
-        pause = False
-        now   = datetime.datetime.now()
-        while True:
-            logging.info("Daemon.run: Starting a lap at: {}".format(now.strftime("%d/%m/%Y, %H:%M:%S")))
+            self.initialized = True
+
+            global cwd    #cannot use instance attributes
+            global mat    #because they are written at the end of the func
+            global pause  #but the while True prevent the function from endding
+
+            cwd   = self.findcwd()
+            mat   = Material(os.path.join(cwd, "config.json"))
+            pause = False
+
+        else:
+
+            logging.info("Daemon.run: Starting a lap at: {}".format(datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")))
             self.do_the_thing()
             time.sleep(mat.interval)
             mat.count()

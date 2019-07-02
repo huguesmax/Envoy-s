@@ -1,17 +1,26 @@
 package main
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/elgs/gojq"
 )
 
 const (
-	confFile  = "config.json"
 	baseFloat = 0.1
 )
 
+var stringToDevice = map[string]DeviceConstructor{
+	"pool_pump": NewPoolPump,
+	"VW_E-Golf": New_VW_EGolf,
+}
+
+var stringToMeter = map[string]MeterConstructor{
+	"panels":  NewPanels,
+	"weather": NewWeather,
+}
+
+//Parser is the model struct
 type Parser struct {
 	Interval         float64 `json:"interval"`
 	ChangingDayHour  float64 `json:"changing day hour"`
@@ -20,18 +29,21 @@ type Parser struct {
 	PeakPrice        float64 `json:"peak price"`
 	OffpeakPrice     float64 `json:"offpeak price"`
 	SellingPrice     float64 `json"selling price`
+	Devices          map[string]IDevice
+	Meters           map[string]IMeter
 }
 
-func main() {
+//Parse is the main parsing function
+func Parse(confFile string) (*Parser, error) {
 
 	file, err := gojq.NewFileQuery(confFile)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	d := Parser{}
-	elts := reflect.ValueOf(&d).Elem()
-	tags := reflect.TypeOf(&d).Elem()
+	d := &Parser{}
+	elts := reflect.ValueOf(d).Elem()
+	tags := reflect.TypeOf(d).Elem()
 	base := reflect.ValueOf(baseFloat)
 
 	for i := 0; i < elts.NumField(); i++ {
@@ -39,7 +51,9 @@ func main() {
 		field := elts.Field(i)
 
 		if field.Type() == base.Type() {
+
 			tag := tags.Field(i).Tag.Get("json")
+
 			v, err := file.QueryToFloat64(tag)
 			if err == nil {
 				field.SetFloat(v)
@@ -47,6 +61,5 @@ func main() {
 		}
 	}
 
-	fmt.Println(d.Interval)
-	fmt.Println(d.ChangingDayHour)
+	return d, nil
 }

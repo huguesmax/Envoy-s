@@ -1,5 +1,5 @@
 // THIS GO SCRIPT IS JUST A TRANSPOSITION OF THE PYTHON SCRIPT
-package maine
+package main
 
 import (
 	"io/ioutil"
@@ -9,6 +9,12 @@ import (
 	"github.com/elgs/gojq"
 	"github.com/takama/daemon"
 )
+
+//DeviceConstructor is the delegate for the constructor of device structs
+type DeviceConstructor func(int, int) IDevice
+
+//MeterConstructor is the delegate for the constructor of meter structs
+type MeterConstructor func(map[string]string) IMeter
 
 func checkErr(err error) {
 	if err != nil {
@@ -21,36 +27,72 @@ type Service struct {
 	daemon.Daemon
 }
 
-//Device base struct
+//Device is the base device struct
 type Device struct {
-	Wired     bool
-	Watts     int
+	Wired     bool `json:"wired"`
+	Watts     int  `json:"Wh"`
 	timeLit   int
 	timeToLit int
 }
 
+//IDevice is the base interface for output
+type IDevice interface {
+	On()
+	Off()
+	Count(int)
+	IsLit() bool
+	ChangeDay(int)
+	IsEnoughLitten() bool
+}
+
 //ChangeDay reset values of timelit and timeToLit
-func (d *Device) ChangeDay(ttl int) {
+func (d Device) ChangeDay(ttl int) {
 	d.timeLit = 0
 	d.timeToLit = ttl
 }
 
 //IsEnoughLitten return a bool to light or not to light the device
-func (d *Device) IsEnoughLitten() bool {
+func (d Device) IsEnoughLitten() bool {
 	return d.timeLit >= d.timeToLit
 }
 
-//NewDevice is the pseudo-constuctor for the Device class
-func NewDevice(watts int, ttl int) Device {
-	dev := Device{Watts: watts}
+//Count the time between intervals
+func (d Device) Count(i int) {
+	d.timeLit += i
+}
+
+//PoolPump is the only usable class for now
+type PoolPump struct {
+	Device
+	//GPIO NotImplemented
+}
+
+//IsLit says if the gpio is lit
+func (d PoolPump) IsLit() bool {
+	return true
+}
+
+//On turns on the GPIO
+func (d PoolPump) On() {
+
+}
+
+//Off Turns off the GPIO
+func (d PoolPump) Off() {
+
+}
+
+//NewPoolPump is the pseudo-constuctor for the Device class
+func NewPoolPump(watts int, ttl int) IDevice {
+	dev := PoolPump{}
+	dev.Watts = watts
 	dev.ChangeDay(ttl)
 	return dev
 }
 
-//PoolPump is the only usable device class
-type PoolPump struct {
-	Device
-	//gpio GPIO
+//IMter is The base interface for meter
+type IMeter interface {
+	retrieve() map[string]float64
 }
 
 //Get base http query

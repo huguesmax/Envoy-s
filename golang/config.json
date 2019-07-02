@@ -23,7 +23,7 @@
     {
       "wired": false,
       "Wh": 0,
-      "host": "localhost"
+      "Open-Evse": "localhost"
     }
   },
   "meters":
