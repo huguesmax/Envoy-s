@@ -329,11 +329,10 @@ class Daemon(step.StepDaemon):
 
     def pause(self):
 
-        global pause
-        pause = True
+        self.pause = True
 
         try:
-            for dev in mat.devices.values():
+            for dev in self.mat.devices.values():
                 if isinstance(dev, Gpio):
                     dev.gpio.off()
 
@@ -347,8 +346,7 @@ class Daemon(step.StepDaemon):
 
     def play(self):
 
-        global pause
-        pause = False
+        self.pause = False
 
         self.do_the_thing()
 
@@ -359,10 +357,11 @@ class Daemon(step.StepDaemon):
     def stop(self):
 
         try:
-            for dev in mat.devices.values():
-                if isinstance(dev, Gpio):
-                    dev.gpio.off()
-                    
+            if asattr(self, 'mat'):
+                for dev in self.mat.devices.values():
+                    if isinstance(dev, Gpio):
+                        dev.gpio.off()
+
         except Exception as e:
             logging.info(e)
             print(e)
@@ -379,19 +378,19 @@ class Daemon(step.StepDaemon):
             :rtype:          bool
         """
 
-        data = mat.energy_retrieve()
+        data = self.mat.energy_retrieve()
         now  = time.localtime()
 
         if data is None:
             logging.error("Daemon.do_the_thing: something went wrong while retrieving data from panels, stopping the lap")
             pass
 
-        if now.tm_hour >= mat.start_offpeak or now.tm_hour < mat.start_peak: #the price is offpeak
-            actual_price = mat.offpeak_price
-            other_price  = mat.peak_price
+        if now.tm_hour >= self.mat.start_offpeak or now.tm_hour < self.mat.start_peak: #the price is offpeak
+            actual_price = self.mat.offpeak_price
+            other_price  = self.mat.peak_price
         else:                                                                # the price is peak
-            actual_price = mat.peak_price
-            other_price  = mat.offpeak_price
+            actual_price = self.mat.peak_price
+            other_price  = self.mat.offpeak_price
 
         return (data["consumption"] + device.Watts - data["production"])*actual_price <= device.Watts*other_price
 
@@ -401,10 +400,10 @@ class Daemon(step.StepDaemon):
         setup of booleans to turn off/on the devices availables
         """
 
-        if pause:
+        if self.pause:
             pass
 
-        for device in mat.devices.values():
+        for device in self.mat.devices.values():
 
             worth_to_light = self.IsWorthy(device)
 
@@ -420,7 +419,7 @@ class Daemon(step.StepDaemon):
                         logging.info("turned off {} because it no more free to light".format(device))
                         device.gpio.off()
 
-                    elif not device.gpio.is_lit and device.time_to_lit >= mat.day_count:
+                    elif not device.gpio.is_lit and device.time_to_lit >= self.mat.day_count:
                         logging.info("turned on {} because he has a time-to-lit-a-day".format(device))
                         device.gpio.on()
 
@@ -450,13 +449,11 @@ class Daemon(step.StepDaemon):
 
             self.initialized = True
 
-            global cwd    #cannot use instance attributes
-            global mat    #because they are written at the end of the func
-            global pause  #but the while True prevent the function from endding
+            self.cwd   = self.findcwd()
+            self.mat   = Material(os.path.join(cwd, "config.json"))
+            self.pause = False
 
-            cwd   = self.findcwd()
-            mat   = Material(os.path.join(cwd, "config.json"))
-            pause = False
+            logging.info("daemon initialized")
 
         else:
 
